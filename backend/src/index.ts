@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 import router from './routes';
 
+import { initScheduler } from './scheduler';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -17,5 +19,7 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 app.use('/api', router);
+
+initScheduler();
 
 app.listen(PORT, () => console.log(`🚀 Backend running on http://localhost:${PORT}`));

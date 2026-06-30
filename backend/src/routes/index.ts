@@ -10,6 +10,7 @@ import { getCart, addCartItem, updateCartItem, removeCartItem, clearCart } from 
 import { checkout, getBuyerOrders, getBuyerOrderById, getSellerOrders, getSellerOrderById, processSellerOrder, getBuyerReports, getSellerReports, requestPickup } from '../controllers/order.controller';
 import { createVoucher, getVouchers, getVoucherById, createPromo, getPromos, getPromoById, validateVoucher, validatePromo } from '../controllers/discount.controller';
 import { getAvailableJobs, getMyJobs, acceptJob, pickupJob, completeJob } from '../controllers/delivery.controller';
+import { getAllOrders, getAllDeliveries } from '../controllers/admin.controller';
 
 const router = Router();
 
@@ -71,6 +72,10 @@ router.get('/seller/orders/:id', verifyToken, requireRole('SELLER'), getSellerOr
 router.patch('/seller/orders/:id/process', verifyToken, requireRole('SELLER'), processSellerOrder);
 router.patch('/seller/orders/:id/request-pickup', verifyToken, requireRole('SELLER'), requestPickup);
 router.get('/seller/reports', verifyToken, requireRole('SELLER'), getSellerReports);
+
+// Admin Routes
+router.get('/admin/orders', verifyToken, requireRole('ADMIN'), getAllOrders);
+router.get('/admin/deliveries', verifyToken, requireRole('ADMIN'), getAllDeliveries);
 
 // Admin Discounts
 router.post('/admin/vouchers', verifyToken, requireRole('ADMIN'), createVoucher);

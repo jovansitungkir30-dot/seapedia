@@ -2,16 +2,51 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const [product, setProduct] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [conflictData, setConflictData] = useState<{ currentStoreId: string } | null>(null);
+
+  const handleAddToCart = async () => {
+    setIsAddingToCart(true);
+    try {
+      await api.post('/buyer/cart/items', { productId: params.id, quantity: 1 });
+      toast.success('Berhasil ditambahkan ke keranjang');
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setConflictData({ currentStoreId: err.response.data.currentStoreId });
+      } else if (err.response?.status === 401) {
+        toast.error('Silakan login sebagai Pembeli terlebih dahulu');
+        router.push('/auth/login');
+      } else {
+        toast.error(err.response?.data?.error || 'Gagal menambahkan ke keranjang');
+      }
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleClearAndAdd = async () => {
+    try {
+      await api.delete('/buyer/cart'); // Clear cart
+      await api.post('/buyer/cart/items', { productId: params.id, quantity: 1 }); // Add item
+      toast.success('Keranjang dikosongkan dan produk ditambahkan');
+      setConflictData(null);
+    } catch (err) {
+      toast.error('Gagal memproses permintaan');
+    }
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -90,12 +125,17 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="flex gap-4 mt-auto">
-              {/* This button will be fully functional in Level 3 */}
               <Button size="lg" className="flex-1 text-lg">
                 Beli Sekarang
               </Button>
-              <Button size="lg" variant="outline" className="flex-1 text-lg">
-                Tambah ke Keranjang
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="flex-1 text-lg"
+                onClick={handleAddToCart}
+                disabled={isAddingToCart}
+              >
+                {isAddingToCart ? 'Menambahkan...' : 'Tambah ke Keranjang'}
               </Button>
             </div>
           </div>
@@ -103,6 +143,28 @@ export default function ProductDetailPage() {
       </main>
 
       <Footer />
+
+      {/* Conflict Modal */}
+      {conflictData && (
+        <Dialog open={!!conflictData} onOpenChange={() => setConflictData(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ganti Toko?</DialogTitle>
+              <DialogDescription>
+                Keranjang Anda saat ini berisi produk dari toko lain. Karena sistem checkout kami mengharuskan pembelian dari satu toko saja, apakah Anda ingin mengosongkan keranjang sebelumnya dan menambahkan produk ini?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setConflictData(null)}>
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={handleClearAndAdd}>
+                Kosongkan & Tambah
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

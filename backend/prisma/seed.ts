@@ -43,7 +43,51 @@ async function main() {
     },
   });
 
-  console.log('✅ Seed complete: admin@seapedia.com & seller1@seapedia.com');
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+
+  await prisma.voucher.upsert({
+    where: { code: 'SAVE10' },
+    update: {},
+    create: {
+      code: 'SAVE10',
+      description: 'Diskon 10% (Min Belanja Rp 50.000)',
+      discountType: 'PERCENTAGE',
+      discountValue: 10,
+      minOrderAmount: 50000,
+      maxUsage: 100,
+      expiresAt: nextYear,
+    },
+  });
+
+  await prisma.voucher.upsert({
+    where: { code: 'POTONG20K' },
+    update: {},
+    create: {
+      code: 'POTONG20K',
+      description: 'Potongan Harga Rp 20.000 (Min Belanja Rp 100.000)',
+      discountType: 'FIXED',
+      discountValue: 20000,
+      minOrderAmount: 100000,
+      maxUsage: 50,
+      expiresAt: nextYear,
+    },
+  });
+
+  await prisma.promo.upsert({
+    where: { code: 'PROMO5' },
+    update: {},
+    create: {
+      code: 'PROMO5',
+      description: 'Promo Spesial Diskon 5% Tanpa Minimal Belanja',
+      discountType: 'PERCENTAGE',
+      discountValue: 5,
+      minOrderAmount: 0,
+      expiresAt: nextYear,
+    },
+  });
+
+  console.log('✅ Seed complete: admin, seller, vouchers, and promos');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

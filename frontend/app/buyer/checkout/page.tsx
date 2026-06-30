@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { MapPin, Truck, Wallet, CheckCircle2 } from 'lucide-react';
@@ -26,6 +27,14 @@ export default function BuyerCheckoutPage() {
   const [selectedMethod, setSelectedMethod] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Level 4
+  const [voucherCodeInput, setVoucherCodeInput] = useState('');
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{code: string, discount: number} | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{code: string, discount: number} | null>(null);
+  const [isApplyingVoucher, setIsApplyingVoucher] = useState(false);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,7 +68,49 @@ export default function BuyerCheckoutPage() {
 
   const deliveryFee = selectedMethod ? DELIVERY_METHODS.find(m => m.id === selectedMethod)?.fee || 0 : 0;
   const subtotal = cart?.subtotal || 0;
-  const discountAmount = 0; // Level 4
+  
+  const handleApplyVoucher = async () => {
+    if (!voucherCodeInput) return;
+    setIsApplyingVoucher(true);
+    try {
+      const res = await api.get(`/vouchers/validate?code=${voucherCodeInput}&subtotal=${subtotal}`);
+      if (res.data.valid) {
+        setAppliedVoucher({ code: voucherCodeInput, discount: res.data.discountAmount });
+        toast.success('Voucher berhasil digunakan!');
+      } else {
+        toast.error(res.data.reason || 'Voucher tidak valid');
+        setAppliedVoucher(null);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.reason || 'Voucher tidak valid');
+      setAppliedVoucher(null);
+    } finally {
+      setIsApplyingVoucher(false);
+    }
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput) return;
+    setIsApplyingPromo(true);
+    try {
+      const currentSubtotal = subtotal - (appliedVoucher?.discount || 0);
+      const res = await api.get(`/promos/validate?code=${promoCodeInput}&subtotal=${currentSubtotal}`);
+      if (res.data.valid) {
+        setAppliedPromo({ code: promoCodeInput, discount: res.data.discountAmount });
+        toast.success('Promo berhasil digunakan!');
+      } else {
+        toast.error(res.data.reason || 'Promo tidak valid');
+        setAppliedPromo(null);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.reason || 'Promo tidak valid');
+      setAppliedPromo(null);
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
+  const discountAmount = (appliedVoucher?.discount || 0) + (appliedPromo?.discount || 0);
   const taxBase = subtotal - discountAmount + deliveryFee;
   const taxAmount = taxBase * 0.12;
   const totalAmount = taxBase + taxAmount;
@@ -75,6 +126,8 @@ export default function BuyerCheckoutPage() {
       const res = await api.post('/buyer/checkout', {
         deliveryAddressId: selectedAddressId,
         deliveryMethod: selectedMethod,
+        voucherCode: appliedVoucher?.code,
+        promoCode: appliedPromo?.code,
       });
       toast.success('Pesanan berhasil dibuat!');
       router.push(`/buyer/orders/${res.data.id}`);
@@ -177,6 +230,48 @@ export default function BuyerCheckoutPage() {
         </div>
 
         <div className="lg:col-span-1">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Makin Hemat</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Kode Voucher" 
+                  value={voucherCodeInput} 
+                  onChange={(e) => setVoucherCodeInput(e.target.value.toUpperCase())}
+                  disabled={!!appliedVoucher || isApplyingVoucher}
+                />
+                {!appliedVoucher ? (
+                  <Button variant="outline" onClick={handleApplyVoucher} disabled={!voucherCodeInput || isApplyingVoucher}>
+                    Terapkan
+                  </Button>
+                ) : (
+                  <Button variant="destructive" onClick={() => { setAppliedVoucher(null); setVoucherCodeInput(''); }}>
+                    Hapus
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Kode Promo" 
+                  value={promoCodeInput} 
+                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                  disabled={!!appliedPromo || isApplyingPromo}
+                />
+                {!appliedPromo ? (
+                  <Button variant="outline" onClick={handleApplyPromo} disabled={!promoCodeInput || isApplyingPromo}>
+                    Terapkan
+                  </Button>
+                ) : (
+                  <Button variant="destructive" onClick={() => { setAppliedPromo(null); setPromoCodeInput(''); }}>
+                    Hapus
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="sticky top-6">
             <CardHeader>
               <CardTitle>Ringkasan Belanja</CardTitle>
@@ -186,6 +281,18 @@ export default function BuyerCheckoutPage() {
                 <span className="text-muted-foreground">Subtotal Barang</span>
                 <span>Rp {subtotal.toLocaleString('id-ID')}</span>
               </div>
+              {appliedVoucher && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Voucher ({appliedVoucher.code})</span>
+                  <span>-Rp {appliedVoucher.discount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              {appliedPromo && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Promo ({appliedPromo.code})</span>
+                  <span>-Rp {appliedPromo.discount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ongkos Kirim</span>
                 <span>Rp {deliveryFee.toLocaleString('id-ID')}</span>

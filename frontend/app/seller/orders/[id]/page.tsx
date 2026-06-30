@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { MapPin, Truck, PackageOpen, Clock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -33,6 +34,23 @@ export default function SellerOrderDetailPage() {
     };
     fetchOrder();
   }, [id]);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleProcessOrder = async () => {
+    setIsProcessing(true);
+    try {
+      await api.patch(`/seller/orders/${id}/process`);
+      toast.success('Pesanan berhasil diproses menjadi Menunggu Pengirim');
+      // Refresh order data
+      const res = await api.get(`/seller/orders/${id}`);
+      setOrder(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Gagal memproses pesanan');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (isLoading) return <div>Memuat detail pesanan...</div>;
   if (!order) return <div>Pesanan tidak ditemukan.</div>;
@@ -114,9 +132,14 @@ export default function SellerOrderDetailPage() {
             </div>
             
             {order.status === 'SEDANG_DIKEMAS' && (
-              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                <p className="text-amber-800 font-medium mb-1">Segera Siapkan Barang!</p>
-                <p className="text-amber-700 text-xs">Pesanan ini menunggu untuk diproses. (Akan aktif di Level 4)</p>
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 flex justify-between items-center">
+                <div>
+                  <p className="text-amber-800 font-medium mb-1">Segera Siapkan Barang!</p>
+                  <p className="text-amber-700 text-xs">Pesanan ini menunggu untuk diproses.</p>
+                </div>
+                <Button onClick={handleProcessOrder} disabled={isProcessing}>
+                  {isProcessing ? 'Memproses...' : 'Proses Pesanan'}
+                </Button>
               </div>
             )}
           </CardContent>

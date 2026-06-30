@@ -7,7 +7,8 @@ import { verifyToken, requireRole } from '../middlewares/auth.middleware';
 import { getWallet, topUpWallet } from '../controllers/wallet.controller';
 import { getAddresses, createAddress, updateAddress, deleteAddress, setDefaultAddress } from '../controllers/address.controller';
 import { getCart, addCartItem, updateCartItem, removeCartItem, clearCart } from '../controllers/cart.controller';
-import { checkout, getBuyerOrders, getBuyerOrderById, getSellerOrders, getSellerOrderById } from '../controllers/order.controller';
+import { checkout, getBuyerOrders, getBuyerOrderById, getSellerOrders, getSellerOrderById, processSellerOrder, getBuyerReports, getSellerReports } from '../controllers/order.controller';
+import { createVoucher, getVouchers, getVoucherById, createPromo, getPromos, getPromoById, validateVoucher, validatePromo } from '../controllers/discount.controller';
 
 const router = Router();
 
@@ -61,9 +62,24 @@ router.delete('/buyer/cart', verifyToken, requireRole('BUYER'), clearCart);
 router.post('/buyer/checkout', verifyToken, requireRole('BUYER'), checkout);
 router.get('/buyer/orders', verifyToken, requireRole('BUYER'), getBuyerOrders);
 router.get('/buyer/orders/:id', verifyToken, requireRole('BUYER'), getBuyerOrderById);
+router.get('/buyer/reports', verifyToken, requireRole('BUYER'), getBuyerReports);
 
 // Seller Orders
 router.get('/seller/orders', verifyToken, requireRole('SELLER'), getSellerOrders);
 router.get('/seller/orders/:id', verifyToken, requireRole('SELLER'), getSellerOrderById);
+router.patch('/seller/orders/:id/process', verifyToken, requireRole('SELLER'), processSellerOrder);
+router.get('/seller/reports', verifyToken, requireRole('SELLER'), getSellerReports);
+
+// Admin Discounts
+router.post('/admin/vouchers', verifyToken, requireRole('ADMIN'), createVoucher);
+router.get('/admin/vouchers', verifyToken, requireRole('ADMIN'), getVouchers);
+router.get('/admin/vouchers/:id', verifyToken, requireRole('ADMIN'), getVoucherById);
+router.post('/admin/promos', verifyToken, requireRole('ADMIN'), createPromo);
+router.get('/admin/promos', verifyToken, requireRole('ADMIN'), getPromos);
+router.get('/admin/promos/:id', verifyToken, requireRole('ADMIN'), getPromoById);
+
+// Public Validation Discounts
+router.get('/vouchers/validate', validateVoucher);
+router.get('/promos/validate', validatePromo);
 
 export default router;

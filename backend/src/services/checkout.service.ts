@@ -9,7 +9,9 @@ export const DELIVERY_FEES: Record<string, number> = {
 export const processCheckout = async (
   buyerId: string,
   deliveryAddressId: string,
-  deliveryMethod: string
+  deliveryMethod: string,
+  voucherCode?: string,
+  promoCode?: string
 ) => {
   return await prisma.$transaction(async (tx) => {
     const cart = await tx.cart.findUnique({
@@ -45,8 +47,46 @@ export const processCheckout = async (
       subtotal += item.product.price * item.quantity;
     }
 
+    let voucherDiscount = 0;
+    let promoDiscount = 0;
+    let voucherId: string | undefined;
+    let promoId: string | undefined;
+
+    if (voucherCode) {
+      const voucher = await tx.voucher.findUnique({ where: { code: voucherCode } });
+      if (voucher && voucher.expiresAt >= new Date() && voucher.usedCount < voucher.maxUsage && subtotal >= voucher.minOrderAmount) {
+        voucherDiscount = voucher.discountType === 'PERCENTAGE' 
+          ? subtotal * (voucher.discountValue / 100) 
+          : voucher.discountValue;
+        if (voucherDiscount > subtotal) voucherDiscount = subtotal;
+        voucherId = voucher.id;
+        
+        await tx.voucher.update({
+          where: { id: voucher.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      } else {
+        throw new Error('Voucher tidak valid atau kadaluarsa');
+      }
+    }
+
+    const subtotalAfterVoucher = subtotal - voucherDiscount;
+
+    if (promoCode) {
+      const promo = await tx.promo.findUnique({ where: { code: promoCode } });
+      if (promo && promo.expiresAt >= new Date() && subtotalAfterVoucher >= promo.minOrderAmount) {
+        promoDiscount = promo.discountType === 'PERCENTAGE'
+          ? subtotalAfterVoucher * (promo.discountValue / 100)
+          : promo.discountValue;
+        if (promoDiscount > subtotalAfterVoucher) promoDiscount = subtotalAfterVoucher;
+        promoId = promo.id;
+      } else {
+        throw new Error('Promo tidak valid atau kadaluarsa');
+      }
+    }
+
+    const discountAmount = voucherDiscount + promoDiscount;
     const deliveryFee = DELIVERY_FEES[deliveryMethod] || DELIVERY_FEES.REGULAR;
-    const discountAmount = 0; // Discount calculation comes in Level 4
     const taxBase = subtotal - discountAmount + deliveryFee;
     const taxAmount = taxBase * 0.12;
     const totalAmount = taxBase + taxAmount;
@@ -91,6 +131,8 @@ export const processCheckout = async (
         taxAmount,
         totalAmount,
         status: 'SEDANG_DIKEMAS',
+        voucherId,
+        promoId,
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,

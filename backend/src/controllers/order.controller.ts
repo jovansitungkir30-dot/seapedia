@@ -287,3 +287,67 @@ export const getSellerReports = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const requestPickup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+
+    const store = await prisma.store.findUnique({ where: { sellerId: userId } });
+    if (!store) {
+      res.status(404).json({ error: 'Toko tidak ditemukan' });
+      return;
+    }
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      res.status(404).json({ error: 'Pesanan tidak ditemukan' });
+      return;
+    }
+
+    if (order.storeId !== store.id) {
+      res.status(403).json({ error: 'Anda tidak memiliki akses ke pesanan ini' });
+      return;
+    }
+
+    if (order.status !== 'MENUNGGU_PENGIRIM') {
+      res.status(400).json({ error: 'Pesanan belum diproses' });
+      return;
+    }
+
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Create DeliveryJob
+      await tx.deliveryJob.create({
+        data: {
+          orderId: id,
+          status: 'MENCARI_DRIVER',
+        },
+      });
+
+      // Update Order status
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: 'MENCARI_DRIVER' },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          status: 'MENCARI_DRIVER',
+          note: 'Penjual request pickup, mencari driver',
+        },
+      });
+
+      return updated;
+    });
+
+    res.json(updatedOrder);
+  } catch (error: any) {
+    console.error(error);
+    if (error.code === 'P2002') {
+      res.status(400).json({ error: 'Pickup sudah di-request untuk pesanan ini' });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

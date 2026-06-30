@@ -5,10 +5,11 @@ import { createStore, getOwnStore, updateStore, getStoreById } from '../controll
 import { createProduct, getSellerProducts, updateProduct, deleteProduct, getPublicProducts, getPublicProductById } from '../controllers/product.controller';
 import { verifyToken, requireRole } from '../middlewares/auth.middleware';
 import { getWallet, topUpWallet } from '../controllers/wallet.controller';
-import { getAddresses, createAddress, updateAddress, deleteAddress, setDefaultAddress } from '../controllers/address.controller';
+import { createAddress, updateAddress, deleteAddress, setDefaultAddress, getAddresses } from '../controllers/address.controller';
 import { getCart, addCartItem, updateCartItem, removeCartItem, clearCart } from '../controllers/cart.controller';
-import { checkout, getBuyerOrders, getBuyerOrderById, getSellerOrders, getSellerOrderById, processSellerOrder, getBuyerReports, getSellerReports } from '../controllers/order.controller';
+import { checkout, getBuyerOrders, getBuyerOrderById, getSellerOrders, getSellerOrderById, processSellerOrder, getBuyerReports, getSellerReports, requestPickup } from '../controllers/order.controller';
 import { createVoucher, getVouchers, getVoucherById, createPromo, getPromos, getPromoById, validateVoucher, validatePromo } from '../controllers/discount.controller';
+import { getAvailableJobs, getMyJobs, acceptJob, pickupJob, completeJob } from '../controllers/delivery.controller';
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.get('/buyer/reports', verifyToken, requireRole('BUYER'), getBuyerReports)
 router.get('/seller/orders', verifyToken, requireRole('SELLER'), getSellerOrders);
 router.get('/seller/orders/:id', verifyToken, requireRole('SELLER'), getSellerOrderById);
 router.patch('/seller/orders/:id/process', verifyToken, requireRole('SELLER'), processSellerOrder);
+router.patch('/seller/orders/:id/request-pickup', verifyToken, requireRole('SELLER'), requestPickup);
 router.get('/seller/reports', verifyToken, requireRole('SELLER'), getSellerReports);
 
 // Admin Discounts
@@ -81,5 +83,12 @@ router.get('/admin/promos/:id', verifyToken, requireRole('ADMIN'), getPromoById)
 // Public Validation Discounts
 router.get('/vouchers/validate', validateVoucher);
 router.get('/promos/validate', validatePromo);
+
+// Driver Delivery Jobs
+router.get('/driver/jobs', verifyToken, requireRole('DRIVER'), getAvailableJobs);
+router.get('/driver/my-jobs', verifyToken, requireRole('DRIVER'), getMyJobs);
+router.patch('/driver/jobs/:id/accept', verifyToken, requireRole('DRIVER'), acceptJob);
+router.patch('/driver/jobs/:id/pickup', verifyToken, requireRole('DRIVER'), pickupJob);
+router.patch('/driver/jobs/:id/complete', verifyToken, requireRole('DRIVER'), completeJob);
 
 export default router;

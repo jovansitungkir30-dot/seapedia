@@ -42,11 +42,24 @@ export default function SellerOrderDetailPage() {
     try {
       await api.patch(`/seller/orders/${id}/process`);
       toast.success('Pesanan berhasil diproses menjadi Menunggu Pengirim');
-      // Refresh order data
       const res = await api.get(`/seller/orders/${id}`);
       setOrder(res.data);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Gagal memproses pesanan');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRequestPickup = async () => {
+    setIsProcessing(true);
+    try {
+      await api.patch(`/seller/orders/${id}/request-pickup`);
+      toast.success('Berhasil request pickup. Menunggu driver...');
+      const res = await api.get(`/seller/orders/${id}`);
+      setOrder(res.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Gagal memanggil kurir');
     } finally {
       setIsProcessing(false);
     }
@@ -139,6 +152,18 @@ export default function SellerOrderDetailPage() {
                 </div>
                 <Button onClick={handleProcessOrder} disabled={isProcessing}>
                   {isProcessing ? 'Memproses...' : 'Proses Pesanan'}
+                </Button>
+              </div>
+            )}
+            
+            {order.status === 'MENUNGGU_PENGIRIM' && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 flex justify-between items-center">
+                <div>
+                  <p className="text-blue-800 font-medium mb-1">Barang Siap Di-pickup?</p>
+                  <p className="text-blue-700 text-xs">Panggil kurir untuk mengambil barang.</p>
+                </div>
+                <Button onClick={handleRequestPickup} disabled={isProcessing}>
+                  {isProcessing ? 'Memanggil...' : 'Request Pickup'}
                 </Button>
               </div>
             )}

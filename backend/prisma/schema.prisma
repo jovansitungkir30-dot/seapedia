@@ -23,6 +23,7 @@ model User {
   cart         Cart?     @relation("BuyerCart")
   buyerOrders  Order[]   @relation("BuyerOrders")
   sellerOrders Order[]   @relation("SellerOrders")
+  deliveryJobs DeliveryJob[] @relation("DriverJobs")
 }
 
 model Store {
@@ -136,6 +137,7 @@ model Order {
   promo             Promo?          @relation("OrderPromo", fields: [promoId], references: [id])
   items             OrderItem[]
   statusHistory     OrderStatusHistory[]
+  deliveryJob       DeliveryJob?
 }
 
 model Voucher {
@@ -204,4 +206,20 @@ model ApplicationReview {
   createdAt    DateTime @default(now())
 
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model DeliveryJob {
+  id          String   @id @default(cuid())
+  driverId    String?
+  orderId     String   @unique
+  status      String   @default("MENCARI_DRIVER") // MENCARI_DRIVER, DRIVER_MENUJU_TOKO, SEDANG_DIKIRIM, SELESAI
+  currentLat  Float?
+  currentLng  Float?
+  pickupTime  DateTime?
+  deliveryTime DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  driver      User?    @relation("DriverJobs", fields: [driverId], references: [id])
+  order       Order    @relation(fields: [orderId], references: [id])
 }

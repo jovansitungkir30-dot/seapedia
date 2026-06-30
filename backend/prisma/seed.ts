@@ -87,7 +87,19 @@ async function main() {
     },
   });
 
-  console.log('✅ Seed complete: admin, seller, vouchers, and promos');
+  const driverPassword = await bcrypt.hash('Driver123!', 12);
+  await prisma.user.upsert({
+    where: { email: 'driver1@test.com' },
+    update: {},
+    create: {
+      username: 'driver1',
+      email: 'driver1@test.com',
+      password: driverPassword,
+      roles: { create: [{ role: 'DRIVER' }] },
+    },
+  });
+
+  console.log('✅ Seed complete: admin, seller, driver, vouchers, and promos');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

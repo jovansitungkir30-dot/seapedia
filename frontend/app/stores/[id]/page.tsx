@@ -2,62 +2,79 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import api from '@/lib/api';
 
-export default function CatalogPage() {
+export default function StorePublicPage() {
+  const params = useParams();
+  const [store, setStore] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    const fetchStore = async () => {
+      try {
+        const res = await api.get(`/stores/${params.id}`);
+        setStore(res.data.store);
+        setProducts(res.data.products);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStore();
+  }, [params.id]);
 
-  const fetchProducts = async (searchTerm = '') => {
-    setIsLoading(true);
-    try {
-      const res = await api.get(`/products?search=${searchTerm}`);
-      setProducts(res.data.products);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          Memuat...
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchProducts(search);
-  };
+  if (!store) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          Toko tidak ditemukan.
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-3xl font-bold tracking-tight">Katalog Produk</h1>
-          <form onSubmit={handleSearch} className="flex w-full md:w-auto gap-2">
-            <Input 
-              type="search" 
-              placeholder="Cari produk..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full md:w-64"
-            />
-            <Button type="submit">Cari</Button>
-          </form>
+        <div className="bg-primary/5 rounded-xl p-8 mb-12 text-center max-w-3xl mx-auto border border-primary/10">
+          <h1 className="text-4xl font-bold tracking-tight mb-4">{store.name}</h1>
+          <p className="text-muted-foreground text-lg mb-4">
+            {store.description || 'Tidak ada deskripsi'}
+          </p>
+          <div className="text-sm font-medium">
+            Pemilik: {store.seller?.username}
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-12">Memuat produk...</div>
-        ) : products.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">Tidak ada produk yang ditemukan.</div>
+        <h2 className="text-2xl font-bold tracking-tight mb-6">Produk Toko</h2>
+        
+        {products.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground bg-muted/50 rounded-lg">
+            Toko ini belum memiliki produk aktif.
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => (
@@ -73,9 +90,6 @@ export default function CatalogPage() {
                 </div>
                 <CardContent className="p-4 flex-1">
                   <h3 className="font-semibold line-clamp-1 text-lg mb-1">{product.name}</h3>
-                  <Link href={`/stores/${product.storeId}`} className="text-sm text-muted-foreground hover:underline mb-2 block">
-                    {product.store?.name}
-                  </Link>
                   <p className="text-primary font-bold text-lg mt-2">
                     Rp {product.price.toLocaleString('id-ID')}
                   </p>
